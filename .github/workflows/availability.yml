@@ -1,0 +1,34 @@
+name: Update availability
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"   # every 30 min (GitHub may delay a few minutes)
+  workflow_dispatch: {}       # manual "Run workflow" button
+  push:
+    branches: [main]          # also run once on first push so the site starts populated
+
+permissions:
+  contents: write
+
+concurrency:
+  group: availability
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch availability from Recreation.gov
+        run: python scripts/fetch_availability.py
+      - name: Commit updated availability.json
+        run: |
+          git config user.name "availability-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add availability.json
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "availability update $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
