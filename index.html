@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Northeast Campsite Finder</title>
+<style>
+  :root{
+    --bg:#10160f; --panel:#1a231a; --panel2:#212c21; --border:#2e3b2e;
+    --text:#e8eee4; --muted:#9db096; --accent:#7fb069; --accent2:#e6aa4e;
+    --good:#7fb069; --bad:#c96a5a; --unknown:#8a9aa8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;line-height:1.45}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 16px 80px}
+  header h1{font-size:1.7rem;letter-spacing:.3px}
+  header h1 span{color:var(--accent)}
+  header p{color:var(--muted);margin-top:4px;font-size:.95rem}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:16px}
+  .row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  input[type=date],input[type=text],select{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:.95rem;color-scheme:dark}
+  input[type=text]{min-width:220px}
+  .btn{background:var(--accent);color:#14210f;font-weight:700;border:none;border-radius:8px;padding:10px 18px;font-size:.95rem;cursor:pointer}
+  .btn:hover{filter:brightness(1.1)}
+  .btn.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border);font-weight:600}
+  .btn.small{padding:8px 12px;font-size:.85rem}
+  .btn:disabled{opacity:.5;cursor:default}
+  .mode{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .mode button{background:var(--panel2);color:var(--muted);border:none;padding:9px 14px;cursor:pointer;font-size:.9rem}
+  .mode button.active{background:var(--accent);color:#14210f;font-weight:700}
+  #locStatus{font-size:.85rem;color:var(--accent2);margin-top:8px;min-height:1.2em}
+  #progress{margin-top:10px;font-size:.85rem;color:var(--muted);min-height:1.2em}
+  .bar{height:4px;background:var(--panel2);border-radius:2px;overflow:hidden;margin-top:6px;display:none}
+  .bar div{height:100%;width:0;background:var(--accent);transition:width .2s}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:18px 2px 6px;font-size:.8rem;color:var(--muted)}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap}
+  td{padding:10px;border-bottom:1px solid var(--border);font-size:.92rem;vertical-align:middle}
+  tr:hover td{background:var(--panel)}
+  .name{font-weight:600}
+  .region{color:var(--muted);font-size:.8rem}
+  .drive small{display:block;color:var(--muted);font-size:.72rem;font-weight:400}
+  .sys{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+  .sys.rec{background:#2c4a2c;color:#a6d99a}.sys.ra{background:#2c3e52;color:#9cc4e8}
+  .sys.vt{background:#4a3b25;color:#e8c98f}.sys.me{background:#45304c;color:#d8aee8}
+  .sys.hip{background:#4c2f2f;color:#e8a9a0}.sys.own{background:#3a3a44;color:#c0c0d0}
+  .sys.nj{background:#33422c;color:#bcd8a0}
+  .status{font-weight:600;white-space:nowrap}
+  .status.open{color:var(--good)}.status.full{color:var(--bad)}.status.unknown{color:var(--unknown);font-weight:400}
+  .status small{display:block;font-weight:400;color:var(--muted);font-size:.72rem}
+  a.book{color:var(--accent2);text-decoration:none;font-weight:600;white-space:nowrap}
+  a.book:hover{text-decoration:underline}
+  .weekend-cell{font-size:.8rem;line-height:1.7}
+  .wk{display:inline-block;padding:1px 7px;border-radius:5px;margin:1px 3px 1px 0;background:var(--panel2)}
+  .wk.y{background:#2c4a2c;color:#a6d99a}.wk.n{background:#472c28;color:#d99a8f;text-decoration:line-through;opacity:.7}
+  .toggle{display:flex;align-items:center;gap:7px;font-size:.9rem;color:var(--text);cursor:pointer;padding:10px 4px;user-select:none}
+  .toggle input{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}
+  .badge{display:inline-block;font-size:.75rem;font-weight:700;padding:1px 8px;border-radius:12px;margin-left:8px;vertical-align:1px}
+  .badge.open{background:#2c4a2c;color:#a6d99a}.badge.full{background:#472c28;color:#d99a8f}
+  .badge.err{background:#3a3a44;color:#a8a8b8;font-weight:400}
+  .unverified{margin-top:22px;border:1px solid var(--border);border-radius:12px;background:var(--panel)}
+  .unverified summary{cursor:pointer;list-style:none;padding:12px 16px;font-weight:600;font-size:.9rem;color:var(--muted)}
+  .unverified summary::-webkit-details-marker{display:none}
+  .unverified .inner{padding:0 8px 8px}
+  .note{margin-top:26px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;font-size:.85rem;color:var(--muted)}
+  .note b{color:var(--text)}
+  .cheat{margin-top:16px;border:1px solid var(--accent2);border-radius:12px;background:linear-gradient(180deg,#241d10,#1a231a);overflow:hidden}
+  .cheat summary{cursor:pointer;list-style:none;padding:13px 16px;font-weight:700;font-size:1rem;color:var(--accent2);display:flex;align-items:center;gap:8px}
+  .cheat summary::-webkit-details-marker{display:none}
+  .cheat summary .chev{margin-left:auto;transition:transform .2s;color:var(--muted);font-size:.8rem}
+  .cheat[open] summary .chev{transform:rotate(180deg)}
+  .cheat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;padding:0 16px 16px}
+  .card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:.85rem;color:var(--muted)}
+  .card h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text);margin-bottom:8px}
+  .card ul{list-style:none}
+  .card li{padding:4px 0;border-bottom:1px dashed var(--border)}
+  .card li:last-child{border-bottom:none}
+  .card b{color:var(--text)}
+  .card .tag{color:var(--accent);font-weight:700}
+  @media(max-width:720px){ .hide-m{display:none} td,th{padding:8px 6px} input[type=text]{min-width:150px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>&#9968; Northeast <span>Campsite Finder</span></h1>
+  <p>Every booking system on one page: Recreation.gov (live availability) · MA, NH, NY, CT &amp; PA state parks (ReserveAmerica) · Vermont · Maine · New Jersey · Baxter · Hipcamp</p>
+</header>
+
+<div class="panel">
+  <div class="row">
+    <div class="field"><label>Your location</label>
+      <select id="metro">
+        <option value="42.360,-71.058">Boston, MA</option>
+        <option value="40.713,-74.006">New York, NY</option>
+        <option value="41.824,-71.413">Providence, RI</option>
+        <option value="41.764,-72.673">Hartford, CT</option>
+        <option value="41.308,-72.928">New Haven, CT</option>
+        <option value="42.263,-71.802">Worcester, MA</option>
+        <option value="42.101,-72.590">Springfield, MA</option>
+        <option value="42.653,-73.757">Albany, NY</option>
+        <option value="43.661,-70.255">Portland, ME</option>
+        <option value="44.476,-73.212">Burlington, VT</option>
+        <option value="42.995,-71.455">Manchester, NH</option>
+        <option value="43.072,-70.763">Portsmouth, NH</option>
+        <option value="39.952,-75.165">Philadelphia, PA</option>
+        <option value="40.735,-74.172">Newark, NJ</option>
+        <option value="41.409,-75.663">Scranton, PA</option>
+      </select>
+    </div>
+    <div class="field"><label>…or search a town / address</label><input type="text" id="locSearch" placeholder="e.g. Ithaca NY or 02144"></div>
+    <button class="btn small secondary" id="locSearchBtn">Set location</button>
+    <button class="btn small secondary" id="geoBtn">&#128205; Use my location</button>
+  </div>
+  <div id="locStatus"></div>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <div class="mode" id="modeToggle">
+      <button data-mode="dates" class="active">Specific dates</button>
+      <button data-mode="weekends">Scan next 8 weekends</button>
+    </div>
+    <div class="field" id="fArrive"><label>Arrive</label><input type="date" id="arrive"></div>
+    <div class="field" id="fDepart"><label>Depart</label><input type="date" id="depart"></div>
+    <div class="field"><label>Max drive (est.)</label>
+      <select id="maxDrive">
+        <option value="120">2 hours</option>
+        <option value="210">3.5 hours</option>
+        <option value="300" selected>5 hours</option>
+        <option value="9999">Any distance</option>
+      </select>
+    </div>
+    <div class="field"><label>State</label>
+      <select id="stateFilter"><option value="">All</option><option>MA</option><option>NH</option><option>VT</option><option>ME</option><option>NY</option><option>CT</option><option>RI</option><option>NJ</option><option>PA</option></select>
+    </div>
+    <div class="field"><label>Search campgrounds</label><input type="text" id="q" placeholder="e.g. Acadia, Catskills, lake…"></div>
+    <button class="btn" id="checkBtn">Check live availability</button>
+    <label class="toggle"><input type="checkbox" id="onlyAvail"> Only show available</label>
+    <button class="btn secondary" id="resetBtn">Reset</button>
+  </div>
+  <div id="progress"></div>
+  <div class="bar" id="bar"><div id="barFill"></div></div>
+</div>
+
+<details class="cheat" open>
+  <summary>&#127915; New to booking campsites? The cheat sheet <span class="chev">&#9660;</span></summary>
+  <div class="cheat-grid">
+    <div class="card">
+      <h3>When reservations open</h3>
+      <ul>
+        <li><b>Recreation.gov</b> (national forests, Acadia, Army Corps) — rolling <span class="tag">6 months</span> ahead, released daily at 10am ET</li>
+        <li><b>MA, NH, CT, PA &amp; NY state parks</b> — rolling <span class="tag">~6 months</span> ahead on ReserveAmerica</li>
+        <li><b>Vermont</b> — rolling <span class="tag">11 months</span> ahead, daily at 9am</li>
+        <li><b>Maine</b> — whole season opens <span class="tag">Feb 1</span>; book winter for summer</li>
+        <li><b>Baxter (Katahdin)</b> — opens in stages starting mid-January; summer weekends go in minutes</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>The last-minute playbook</h3>
+      <ul>
+        <li><b>Acadia backdoor:</b> 10% of sites are held back until <span class="tag">14 days</span> before arrival, released 10am ET — set a phone reminder</li>
+        <li><b>Cancellation churn</b> peaks <span class="tag">Sunday&ndash;Monday evenings</span> as people bail on next weekend — re-run the live check then</li>
+        <li><b>Go Sun&ndash;Thu:</b> weekend-only scarcity is the real problem; midweek almost always has space</li>
+        <li><b>Hipcamp</b> (private land) rarely sells out — the reliable fallback when parks are full</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Beginner tips</h3>
+      <ul>
+        <li><b>"FCFS"</b> = first-come, first-served: no reservation possible — show up before ~noon Friday</li>
+        <li><b>"Walk-in" site</b> = park, then carry gear a short distance; quieter and easier to snag</li>
+        <li>Sites labeled <b>tent-only</b> face less competition than ones that also fit RVs</li>
+        <li>A <b>vault toilet</b> is an outhouse; "no hookups" only matters for RVs</li>
+        <li>Most parks hold your site until <b>checkout time the next day</b> — arriving late Friday night is fine</li>
+      </ul>
+    </div>
+  </div>
+</details>
+
+<div class="legend">
+  <span><span class="dot" style="background:var(--good)"></span>Green badge = live-checked, sites open for your dates</span>
+  <span><span class="dot" style="background:var(--bad)"></span>Red badge = live-checked, full</span>
+  <span><span class="dot" style="background:var(--unknown)"></span>No badge = state system with no public data — Book link goes straight to that park</span>
+</div>
+
+<table>
+  <thead><tr>
+    <th data-sort="drive">Drive &#9662;</th>
+    <th data-sort="name">Campground</th>
+    <th class="hide-m">System</th>
+    <th>Link</th>
+  </tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<details class="unverified" id="unverifiedBox" style="display:none">
+  <summary id="unverifiedLabel"></summary>
+  <div class="inner"><table><tbody id="rows2"></tbody></table></div>
+</details>
+
+<div class="note">
+  <b>How this works:</b> Federal campgrounds (national forests, Acadia, Army Corps) are checked live against Recreation.gov's availability API — the count shown is tent/standard sites open for <i>every</i> night of your stay. State-park systems don't offer public APIs, so those rows link <i>directly to that specific park's booking page</i> (with your arrival date pre-filled where the system supports it). Maine and New Jersey run single statewide booking portals with no per-park links — pick the park once you're inside. Drive times are estimates from straight-line distance (×1.25 road factor at ~55&nbsp;mph) — good for sorting, not navigation. Live checks probe four network routes (direct + three CORS proxies), lock onto whichever works in your browser, and pressing the button again retries only the failures.
+</div>
+</div>
+
+<script>
+'use strict';
+// URL builders: ReserveAmerica .do pages are driven by contractCode+parkId (slug is cosmetic)
+const RA=(host,cc,slug,id)=>`https://${host}.reserveamerica.com/camping/${slug}/r/campgroundDetails.do?contractCode=${cc}&parkId=${id}`;
+const slug=n=>n.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const MA=(n,id)=>RA('massdcrcamping','MA',slug(n),id), NH=(n,id)=>RA('newhampshirestateparks','NH',slug(n),id),
+      NY=(n,id)=>RA('newyorkstateparks','NY',slug(n),id), CT=(n,id)=>RA('connecticutstateparks','CT',slug(n),id),
+      PA=(n,id)=>RA('pennsylvaniastateparks','PA',slug(n),id), VT=s=>`https://www.vtstateparks.com/parks/${s}`;
+// lat/lng = approximate campground coords. recId = Recreation.gov campground ID (live-checkable).
+const DB=[
+ // ---- MASSACHUSETTS (ReserveAmerica / MA DCR) ----
+ {name:"Harold Parker State Forest",region:"North Andover, MA",st:"MA",lat:42.61,lng:-71.09,sys:"ra",url:MA("Harold Parker State Forest",32608)},
+ {name:"Wompatuck State Park",region:"Hingham, MA",st:"MA",lat:42.21,lng:-70.85,sys:"ra",url:MA("Wompatuck State Park",32628)},
+ {name:"Boston Harbor Islands (Peddocks/Lovells)",region:"Boston Harbor, MA · ferry",st:"MA",lat:42.29,lng:-70.94,sys:"ra",url:MA("Boston Harbor Islands SP",32603)},
+ {name:"Salisbury Beach State Reservation",region:"Salisbury, MA · oceanfront",st:"MA",lat:42.84,lng:-70.82,sys:"ra",url:MA("Salisbury Beach State Reservation",32619)},
+ {name:"Pearl Hill State Park",region:"West Townsend, MA",st:"MA",lat:42.66,lng:-71.76,sys:"ra",url:MA("Pearl Hill State Park",32617)},
+ {name:"Myles Standish State Forest",region:"Carver, MA",st:"MA",lat:41.84,lng:-70.69,sys:"ra",url:MA("Myles Standish State Forest",32614)},
+ {name:"Scusset Beach State Reservation",region:"Sagamore, MA",st:"MA",lat:41.77,lng:-70.50,sys:"ra",url:MA("Scusset Beach State Reservation",32620)},
+ {name:"Otter River State Forest",region:"Baldwinville, MA",st:"MA",lat:42.60,lng:-72.06,sys:"ra",url:MA("Otter River State Forest",32616)},
+ {name:"Lake Dennison Recreation Area",region:"Winchendon, MA",st:"MA",lat:42.63,lng:-72.06,sys:"ra",url:MA("Lake Dennison Recreation Area",32610)},
+ {name:"Shawme-Crowell State Forest",region:"Sandwich, MA · Cape Cod",st:"MA",lat:41.76,lng:-70.51,sys:"ra",url:MA("Shawme Crowell State Forest",32621)},
+ {name:"Nickerson State Park",region:"Brewster, MA · Cape Cod",st:"MA",lat:41.77,lng:-70.03,sys:"ra",url:MA("Nickerson State Park",32601)},
+ {name:"Wells State Park",region:"Sturbridge, MA",st:"MA",lat:42.13,lng:-72.05,sys:"ra",url:MA("Wells State Park",32625)},
+ {name:"DAR State Forest",region:"Goshen, MA",st:"MA",lat:42.46,lng:-72.80,sys:"ra",url:MA("DAR State Forest",32605)},
+ {name:"Tolland State Forest",region:"East Otis, MA",st:"MA",lat:42.10,lng:-73.04,sys:"ra",url:MA("Tolland State Forest",32623)},
+ {name:"October Mountain State Forest",region:"Lee, MA · Berkshires",st:"MA",lat:42.33,lng:-73.22,sys:"ra",url:MA("October Mountain State Forest",32615)},
+ {name:"Beartown State Forest",region:"Monterey, MA · Berkshires",st:"MA",lat:42.20,lng:-73.29,sys:"ra",url:MA("Beartown State Forest",32602)},
+ {name:"Mohawk Trail State Forest",region:"Charlemont, MA",st:"MA",lat:42.64,lng:-72.94,sys:"ra",url:MA("Mohawk Trail State Forest",32613)},
+ {name:"Savoy Mountain State Forest",region:"Florida, MA · Berkshires",st:"MA",lat:42.61,lng:-73.02,sys:"ra",url:MA("Savoy Mountain State Forest",32622)},
+ {name:"Clarksburg State Park",region:"Clarksburg, MA",st:"MA",lat:42.74,lng:-73.09,sys:"ra",url:MA("Clarksburg State Park",32604)},
+ // ---- NEW HAMPSHIRE (ReserveAmerica) ----
+ {name:"Bear Brook State Park",region:"Allenstown, NH",st:"NH",lat:43.16,lng:-71.37,sys:"ra",url:NH("Bear Brook State Park",270003)},
+ {name:"Pawtuckaway State Park",region:"Nottingham, NH · lake",st:"NH",lat:43.08,lng:-71.17,sys:"ra",url:NH("Pawtuckaway State Park",270061)},
+ {name:"Greenfield State Park",region:"Greenfield, NH",st:"NH",lat:42.95,lng:-71.87,sys:"ra",url:NH("Greenfield State Park",270027)},
+ {name:"Monadnock State Park",region:"Jaffrey, NH",st:"NH",lat:42.85,lng:-72.09,sys:"ra",url:NH("Monadnock HQ",271000)},
+ {name:"Ellacoya State Park",region:"Gilford, NH · Winnipesaukee",st:"NH",lat:43.60,lng:-71.38,sys:"ra",url:NH("Ellacoya State Park",270021)},
+ {name:"White Lake State Park",region:"Tamworth, NH",st:"NH",lat:43.83,lng:-71.27,sys:"ra",url:NH("White Lake State Park",270097)},
+ {name:"Lafayette Place (Franconia Notch)",region:"Franconia Notch, NH",st:"NH",lat:44.14,lng:-71.68,sys:"ra",url:NH("Lafayette Place Campground",270044)},
+ {name:"Dry River (Crawford Notch)",region:"Crawford Notch, NH",st:"NH",lat:44.14,lng:-71.38,sys:"ra",url:NH("Dry River Campground",270015)},
+ {name:"Moose Brook State Park",region:"Gorham, NH",st:"NH",lat:44.40,lng:-71.22,sys:"ra",url:NH("Moose Brook State Park",270053)},
+ // ---- WHITE MOUNTAIN NF (Recreation.gov — live) ----
+ {name:"Campton Campground",region:"White Mountain NF, NH",st:"NH",lat:43.86,lng:-71.63,sys:"rec",recId:232178},
+ {name:"Russell Pond Campground",region:"White Mountain NF, NH",st:"NH",lat:43.99,lng:-71.65,sys:"rec",recId:273778},
+ {name:"Waterville Campground",region:"White Mountain NF, NH",st:"NH",lat:43.95,lng:-71.51,sys:"rec",recId:232179},
+ {name:"Osceola Vista Campground",region:"White Mountain NF, NH",st:"NH",lat:43.94,lng:-71.51,sys:"rec",recId:232308},
+ {name:"Hancock Campground",region:"Kancamagus Hwy, NH",st:"NH",lat:44.06,lng:-71.59,sys:"rec",recId:10300159},
+ {name:"Big Rock Campground",region:"Kancamagus Hwy, NH",st:"NH",lat:44.06,lng:-71.55,sys:"rec",recId:239417},
+ {name:"Covered Bridge Campground",region:"Kancamagus Hwy, NH",st:"NH",lat:44.00,lng:-71.24,sys:"rec",recId:232171},
+ {name:"White Ledge Campground",region:"Albany, NH",st:"NH",lat:43.94,lng:-71.13,sys:"rec",recId:232172},
+ {name:"Jigger Johnson Campground",region:"Kancamagus Hwy, NH",st:"NH",lat:43.99,lng:-71.30,sys:"rec",url:"https://www.recreation.gov/search?q=Jigger%20Johnson%20Campground&inventory_type=camping"},
+ {name:"Passaconaway Campground",region:"Kancamagus Hwy, NH",st:"NH",lat:43.99,lng:-71.36,sys:"rec",url:"https://www.recreation.gov/search?q=Passaconaway%20Campground&inventory_type=camping"},
+ {name:"Blackberry Crossing Campground",region:"Kancamagus Hwy, NH",st:"NH",lat:43.99,lng:-71.24,sys:"rec",url:"https://www.recreation.gov/search?q=Blackberry%20Crossing%20Campground&inventory_type=camping"},
+ {name:"Sugarloaf 1 Campground",region:"Twin Mountain, NH",st:"NH",lat:44.25,lng:-71.51,sys:"rec",recId:232177},
+ {name:"Sugarloaf 2 Campground",region:"Twin Mountain, NH",st:"NH",lat:44.25,lng:-71.50,sys:"rec",recId:232140},
+ {name:"Zealand Campground",region:"Twin Mountain, NH",st:"NH",lat:44.26,lng:-71.48,sys:"rec",url:"https://www.recreation.gov/search?q=Zealand%20Campground&inventory_type=camping"},
+ {name:"Dolly Copp Campground",region:"Gorham, NH · base of Mt. Washington",st:"NH",lat:44.33,lng:-71.22,sys:"rec",recId:232173},
+ {name:"Barnes Field Campground",region:"Gorham, NH",st:"NH",lat:44.33,lng:-71.21,sys:"rec",recId:232394},
+ {name:"Basin Campground",region:"Evans Notch, ME",st:"ME",lat:44.30,lng:-70.99,sys:"rec",recId:232174},
+ {name:"Cold River Campground",region:"Evans Notch, ME",st:"ME",lat:44.29,lng:-70.99,sys:"rec",recId:232175},
+ {name:"Hastings Campground",region:"Evans Notch, ME",st:"ME",lat:44.38,lng:-70.98,sys:"rec",recId:232176},
+ // ---- VERMONT (vtstateparks.com park pages → Book Now) ----
+ {name:"Fort Dummer State Park",region:"Brattleboro, VT",st:"VT",lat:42.83,lng:-72.56,sys:"vt",url:VT("fort-dummer")},
+ {name:"Townshend State Park",region:"Townshend, VT",st:"VT",lat:43.04,lng:-72.69,sys:"vt",url:VT("townshend")},
+ {name:"Jamaica State Park",region:"Jamaica, VT · West River",st:"VT",lat:43.11,lng:-72.77,sys:"vt",url:VT("jamaica")},
+ {name:"Winhall Brook Camping Area",region:"S. Londonderry, VT · Army Corps",st:"VT",lat:43.16,lng:-72.80,sys:"rec",recId:233676},
+ {name:"Molly Stark State Park",region:"Wilmington, VT",st:"VT",lat:42.86,lng:-72.81,sys:"vt",url:VT("molly-stark")},
+ {name:"Woodford State Park",region:"Woodford, VT",st:"VT",lat:42.89,lng:-73.03,sys:"vt",url:VT("woodford")},
+ {name:"Emerald Lake State Park",region:"East Dorset, VT",st:"VT",lat:43.28,lng:-73.00,sys:"vt",url:VT("emerald-lake")},
+ {name:"Hapgood Pond Recreation Area",region:"Green Mountain NF, VT",st:"VT",lat:43.26,lng:-72.90,sys:"rec",recId:232393},
+ {name:"Grout Pond Campground",region:"Green Mountain NF, VT",st:"VT",lat:43.05,lng:-72.95,sys:"rec",recId:10040547},
+ {name:"Stillwater State Park",region:"Groton State Forest, VT",st:"VT",lat:44.28,lng:-72.27,sys:"vt",url:VT("stillwater")},
+ {name:"Ricker Pond State Park",region:"Groton State Forest, VT",st:"VT",lat:44.24,lng:-72.25,sys:"vt",url:VT("ricker-pond")},
+ {name:"Chittenden Brook Campground",region:"Green Mountain NF, VT",st:"VT",lat:43.87,lng:-72.85,sys:"rec",recId:251609},
+ {name:"Moosalamoo Campground",region:"Green Mountain NF, VT",st:"VT",lat:43.90,lng:-73.02,sys:"rec",recId:256347},
+ {name:"Silver Lake Campground (hike-in)",region:"Green Mountain NF, VT · 0.6mi walk",st:"VT",lat:43.90,lng:-73.05,sys:"rec",recId:246520},
+ {name:"Branbury State Park",region:"Salisbury, VT · Lake Dunmore",st:"VT",lat:43.90,lng:-73.07,sys:"vt",url:VT("branbury")},
+ {name:"Little River State Park",region:"Waterbury, VT",st:"VT",lat:44.38,lng:-72.77,sys:"vt",url:VT("little-river")},
+ {name:"Half Moon Pond State Park",region:"Hubbardton, VT",st:"VT",lat:43.68,lng:-73.22,sys:"vt",url:VT("half-moon-pond")},
+ {name:"Grand Isle State Park",region:"Lake Champlain, VT",st:"VT",lat:44.70,lng:-73.30,sys:"vt",url:VT("grand-isle")},
+ // ---- MAINE (one statewide booking portal — pick the park inside) ----
+ {name:"Bradbury Mountain State Park",region:"Pownal, ME · pick park in ME portal",st:"ME",lat:43.90,lng:-70.18,sys:"me",url:"https://cg-public-prod.web.maine.gov/public/index"},
+ {name:"Sebago Lake State Park",region:"Casco, ME · pick park in ME portal",st:"ME",lat:43.92,lng:-70.56,sys:"me",url:"https://cg-public-prod.web.maine.gov/public/index"},
+ {name:"Camden Hills State Park",region:"Camden, ME · pick park in ME portal",st:"ME",lat:44.23,lng:-69.05,sys:"me",url:"https://cg-public-prod.web.maine.gov/public/index"},
+ {name:"Mount Blue State Park",region:"Weld, ME · pick park in ME portal",st:"ME",lat:44.68,lng:-70.45,sys:"me",url:"https://cg-public-prod.web.maine.gov/public/index"},
+ {name:"Rangeley Lake State Park",region:"Rangeley, ME · pick park in ME portal",st:"ME",lat:44.93,lng:-70.71,sys:"me",url:"https://cg-public-prod.web.maine.gov/public/index"},
+ {name:"Lamoine State Park",region:"Lamoine, ME · near Acadia",st:"ME",lat:44.45,lng:-68.30,sys:"me",url:"https://cg-public-prod.web.maine.gov/public/index"},
+ {name:"Peaks-Kenny State Park",region:"Dover-Foxcroft, ME · pick park in ME portal",st:"ME",lat:45.26,lng:-69.29,sys:"me",url:"https://cg-public-prod.web.maine.gov/public/index"},
+ {name:"Blackwoods Campground",region:"Acadia National Park, ME",st:"ME",lat:44.31,lng:-68.20,sys:"rec",recId:232508},
+ {name:"Seawall Campground",region:"Acadia National Park, ME",st:"ME",lat:44.28,lng:-68.30,sys:"rec",recId:234674},
+ {name:"Schoodic Woods Campground",region:"Acadia · Schoodic Peninsula, ME",st:"ME",lat:44.40,lng:-68.06,sys:"rec",recId:251833},
+ {name:"Baxter State Park",region:"Katahdin, ME",st:"ME",lat:45.90,lng:-68.90,sys:"own",url:"https://baxterstatepark.org/"},
+ // ---- NEW YORK (ReserveAmerica NY) ----
+ {name:"North-South Lake Campground",region:"Catskills, NY",st:"NY",lat:42.20,lng:-74.05,sys:"ra",url:NY("northsouth-lake-campground",5)},
+ {name:"Kenneth L. Wilson Campground",region:"Catskills, NY",st:"NY",lat:42.02,lng:-74.24,sys:"ra",url:NY("Kenneth L Wilson",117)},
+ {name:"Devil's Tombstone Campground",region:"Catskills, NY",st:"NY",lat:42.15,lng:-74.21,sys:"ra",url:NY("Devils Tombstone Campground",27)},
+ {name:"Woodland Valley Campground",region:"Catskills, NY",st:"NY",lat:42.03,lng:-74.35,sys:"ra",url:NY("Woodland Valley",489)},
+ {name:"Beaver Pond Campground (Harriman)",region:"Harriman State Park, NY",st:"NY",lat:41.24,lng:-74.16,sys:"ra",url:NY("Beaver Pond State Park",392)},
+ {name:"Taconic State Park (Copake Falls)",region:"Copake Falls, NY",st:"NY",lat:42.11,lng:-73.52,sys:"ra",url:NY("Taconic State Park Copake Falls",410)},
+ {name:"Mills-Norrie State Park",region:"Staatsburg, NY · Hudson River",st:"NY",lat:41.83,lng:-73.93,sys:"ra",url:NY("Mills Norrie State Park",401)},
+ {name:"Hearthstone Point Campground",region:"Lake George, NY",st:"NY",lat:43.44,lng:-73.72,sys:"ra",url:NY("Hearthstone Point",505)},
+ {name:"Rogers Rock Campground",region:"Lake George, NY",st:"NY",lat:43.80,lng:-73.47,sys:"ra",url:NY("Rogers Rock Campground",515)},
+ {name:"Lewey Lake Campground",region:"Adirondacks, NY",st:"NY",lat:43.65,lng:-74.40,sys:"ra",url:NY("Lewey Lake",657)},
+ {name:"Eighth Lake Campground",region:"Adirondacks, NY",st:"NY",lat:43.77,lng:-74.70,sys:"ra",url:NY("Eighth Lake Campground",636)},
+ {name:"Fish Creek Pond Campground",region:"Saranac Lakes, NY",st:"NY",lat:44.30,lng:-74.36,sys:"ra",url:NY("Fish Creek Pond Campground",574)},
+ {name:"Rollins Pond Campground",region:"Saranac Lakes, NY",st:"NY",lat:44.31,lng:-74.39,sys:"ra",url:NY("Rollins Pond Campground",547)},
+ {name:"Wilmington Notch Campground",region:"High Peaks, NY",st:"NY",lat:44.36,lng:-73.86,sys:"ra",url:NY("Wilmington Notch",561)},
+ {name:"Watkins Glen State Park",region:"Finger Lakes, NY",st:"NY",lat:42.38,lng:-76.87,sys:"ra",url:NY("Watkins Glen State Park",254)},
+ {name:"Blueberry Patch (Finger Lakes NF)",region:"Hector, NY",st:"NY",lat:42.51,lng:-76.80,sys:"rec",url:"https://www.recreation.gov/search?q=Blueberry%20Patch%20Campground&inventory_type=camping"},
+ // ---- CT / RI ----
+ {name:"Rocky Neck State Park",region:"East Lyme, CT · beach",st:"CT",lat:41.31,lng:-72.24,sys:"ra",url:CT("Rocky Neck State Park",100107)},
+ {name:"Hammonasset Beach State Park",region:"Madison, CT",st:"CT",lat:41.26,lng:-72.55,sys:"ra",url:CT("Hammonasset Beach State Park",100101)},
+ {name:"Housatonic Meadows State Park",region:"Sharon, CT",st:"CT",lat:41.83,lng:-73.37,sys:"ra",url:CT("Housatonic Meadows State Park",100108)},
+ {name:"Macedonia Brook State Park",region:"Kent, CT",st:"CT",lat:41.77,lng:-73.49,sys:"ra",url:CT("Macedonia Brook State Park",100105)},
+ {name:"Lake Waramaug State Park",region:"New Preston, CT",st:"CT",lat:41.70,lng:-73.37,sys:"ra",url:CT("Lake Waramaug State Park",100110)},
+ {name:"Burlingame State Park",region:"Charlestown, RI",st:"RI",lat:41.38,lng:-71.70,sys:"own",url:"https://www.riparks.ri.gov/camping"},
+ {name:"Fishermen's Memorial State Park",region:"Narragansett, RI",st:"RI",lat:41.38,lng:-71.48,sys:"own",url:"https://www.riparks.ri.gov/camping"},
+ // ---- NEW JERSEY (one statewide portal — pick the park inside) ----
+ {name:"Wharton State Forest (Atsion)",region:"Pine Barrens, NJ · pick park in NJ portal",st:"NJ",lat:39.74,lng:-74.73,sys:"nj",url:"https://camping.nj.gov/"},
+ {name:"Stokes State Forest",region:"Sandyston, NJ · pick park in NJ portal",st:"NJ",lat:41.19,lng:-74.80,sys:"nj",url:"https://camping.nj.gov/"},
+ {name:"Worthington State Forest",region:"Delaware Water Gap, NJ",st:"NJ",lat:41.02,lng:-75.07,sys:"nj",url:"https://camping.nj.gov/"},
+ {name:"Allaire State Park",region:"Farmingdale, NJ · pick park in NJ portal",st:"NJ",lat:40.15,lng:-74.12,sys:"nj",url:"https://camping.nj.gov/"},
+ // ---- PENNSYLVANIA (ReserveAmerica PA) ----
+ {name:"Hickory Run State Park",region:"Poconos, PA",st:"PA",lat:41.02,lng:-75.70,sys:"ra",url:PA("Hickory Run State Park",880409)},
+ {name:"Promised Land State Park",region:"Poconos, PA",st:"PA",lat:41.31,lng:-75.21,sys:"ra",url:PA("Promised Land State Park",880414)},
+ {name:"Tobyhanna State Park",region:"Poconos, PA",st:"PA",lat:41.20,lng:-75.39,sys:"ra",url:PA("Tobyhanna State Park",880420)},
+ {name:"Worlds End State Park",region:"Forksville, PA",st:"PA",lat:41.47,lng:-76.58,sys:"ra",url:PA("Worlds End State Park",880423)},
+ {name:"Ricketts Glen State Park",region:"Benton, PA · waterfalls",st:"PA",lat:41.33,lng:-76.30,sys:"ra",url:PA("Ricketts Glen State Park",880417)},
+ {name:"French Creek State Park",region:"Elverson, PA",st:"PA",lat:40.20,lng:-75.79,sys:"ra",url:PA("French Creek State Park",880406)},
+ // ---- HIPCAMP (private land, regional searches) ----
+ {name:"Hipcamp — Massachusetts",region:"Private farms & forests, MA",st:"MA",lat:42.30,lng:-71.80,sys:"hip",url:"https://www.hipcamp.com/en-US/d/united-states/massachusetts/camping/all"},
+ {name:"Hipcamp — New Hampshire",region:"Private land, NH",st:"NH",lat:43.50,lng:-71.50,sys:"hip",url:"https://www.hipcamp.com/en-US/d/united-states/new-hampshire/camping/all"},
+ {name:"Hipcamp — Vermont",region:"Private land, VT",st:"VT",lat:44.00,lng:-72.70,sys:"hip",url:"https://www.hipcamp.com/en-US/d/united-states/vermont/camping/all"},
+ {name:"Hipcamp — Maine",region:"Private land, ME",st:"ME",lat:44.00,lng:-70.40,sys:"hip",url:"https://www.hipcamp.com/en-US/d/united-states/maine/camping/all"},
+ {name:"Hipcamp — New York",region:"Catskills, Hudson Valley & ADK, NY",st:"NY",lat:42.00,lng:-74.50,sys:"hip",url:"https://www.hipcamp.com/en-US/d/united-states/new-york/camping/all"},
+ {name:"Hipcamp — Pennsylvania",region:"Private land, PA",st:"PA",lat:41.20,lng:-75.50,sys:"hip",url:"https://www.hipcamp.com/en-US/d/united-states/pennsylvania/camping/all"},
+ {name:"Hipcamp — New Jersey",region:"Private land, NJ",st:"NJ",lat:40.50,lng:-74.50,sys:"hip",url:"https://www.hipcamp.com/en-US/d/united-states/new-jersey/camping/all"}
+];
+
+
+const SYS_LABEL={rec:"Recreation.gov",ra:"ReserveAmerica",vt:"VT State Parks",me:"Maine Parks",hip:"Hipcamp",own:"Own site",nj:"camping.nj.gov"};
+const $=id=>document.getElementById(id);
+let mode='dates', results={}, sortKey='drive', sortAsc=true;
+let home={lat:42.360,lng:-71.058,label:'Boston, MA'};
+const monthCache={};
+
+// ---------- geo ----------
+function haversineMi(a,b){
+  const R=3958.8,toR=x=>x*Math.PI/180;
+  const dLat=toR(b.lat-a.lat),dLng=toR(b.lng-a.lng);
+  const h=Math.sin(dLat/2)**2+Math.cos(toR(a.lat))*Math.cos(toR(b.lat))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function driveMins(c){ return Math.max(20, Math.round(haversineMi(home,c)*1.25/55*60)); }
+function setHome(lat,lng,label){
+  home={lat,lng,label};
+  $('locStatus').textContent='Distances from: '+label;
+  try{localStorage.setItem('cf_home',JSON.stringify(home));}catch(e){}
+  render();
+}
+async function geocode(q){
+  $('locStatus').textContent='Searching…';
+  try{
+    const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
+    const j=await r.json();
+    if(j&&j[0]){setHome(+j[0].lat,+j[0].lon,j[0].display_name.split(',').slice(0,2).join(','));return;}
+    $('locStatus').textContent='Location not found — try "town, state".';
+  }catch(e){$('locStatus').textContent='Location search failed — pick a city from the dropdown instead.';}
+}
+
+// ---------- date helpers ----------
+function fmt(d){return d.toISOString().slice(0,10);}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
+function nightsBetween(a,b){const out=[];let d=new Date(a+'T12:00:00');const end=new Date(b+'T12:00:00');while(d<end){out.push(fmt(d));d=addDays(d,1);}return out;}
+function nextWeekends(n){const out=[];let d=new Date();d.setHours(12,0,0,0);while(d.getDay()!==5)d=addDays(d,1);for(let i=0;i<n;i++){out.push({fri:fmt(d),label:(d.getMonth()+1)+'/'+d.getDate()});d=addDays(d,7);}return out;}
+
+// ---------- fetching with self-testing CORS fallback ----------
+// Recreation.gov's API doesn't send CORS headers, so a direct browser call usually
+// fails. We route through public CORS proxies: on first use we probe each route,
+// lock onto the first one that returns valid data, and keep using it.
+const TRANSPORTS=[
+  {label:'direct',       wrap:u=>u},
+  {label:'codetabs',     wrap:u=>'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u)},
+  {label:'allorigins',   wrap:u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u)},
+  {label:'corsproxy.io', wrap:u=>'https://corsproxy.io/?url='+encodeURIComponent(u)}
+];
+let transport=null; // index of the route that works in this browser
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+// ---------- server-side snapshot (availability.json, published by GitHub Action) ----------
+// When this site is hosted with its updater workflow, availability.json is regenerated
+// every ~30 min server-side. If present and fresh, badges appear instantly for every
+// visitor with zero client-side API calls. Falls back to live browser checks otherwise.
+let SNAP=null;
+function snapFresh(){return SNAP&&(Date.now()-SNAP.generated)<12*36e5;} // <12h old
+function snapCount(cg,nights){
+  if(!snapFresh())return null;
+  const e=SNAP.camps&&SNAP.camps[cg.recId];
+  if(!e)return null;
+  const base=new Date(SNAP.base+'T12:00:00');
+  const offs=nights.map(n=>Math.round((new Date(n+'T12:00:00')-base)/864e5));
+  if(Math.min(...offs)<0||Math.max(...offs)>=SNAP.horizon)return null; // outside snapshot window
+  let cnt=0;
+  for(const arr of Object.values(e.sites)){
+    const s=new Set(arr);
+    if(offs.every(o=>s.has(o)))cnt++;
+  }
+  return cnt;
+}
+async function loadSnapshot(){
+  try{
+    const r=await fetch('availability.json?_='+Date.now(),{cache:'no-store'});
+    if(!r.ok)return;
+    const j=await r.json();
+    if(!j||!j.generated||!j.camps)return;
+    SNAP=j;
+    if(snapFresh()){
+      const mins=Math.round((Date.now()-SNAP.generated)/6e4);
+      $('progress').textContent=`Availability auto-updated server-side ${mins<60?mins+' min':(mins/60).toFixed(1)+' h'} ago — badges are live for everyone, no checking needed.`;
+      runCheck(); // instant: resolves from snapshot, no network per campground
+    }
+  }catch(e){}
+}
+async function tryFetch(u,validate){
+  const r=await fetch(u,{headers:{'Accept':'application/json'}});
+  if(!r.ok)throw new Error('http '+r.status);
+  const j=await r.json();
+  if(validate&&!validate(j))throw new Error('bad payload');
+  return j;
+}
+async function fetchJson(url,validate){
+  if(transport!==null){
+    for(let attempt=0;attempt<2;attempt++){
+      try{return await tryFetch(TRANSPORTS[transport].wrap(url),validate);}
+      catch(e){await sleep(600);} // brief backoff (rate limits), then retry once
+    }
+  }
+  for(let i=0;i<TRANSPORTS.length;i++){
+    if(i===transport)continue;
+    try{const j=await tryFetch(TRANSPORTS[i].wrap(url),validate);transport=i;
+      $('progress').textContent=`Connected to Recreation.gov via ${TRANSPORTS[i].label} — checking…`;
+      return j;
+    }catch(e){}
+  }
+  throw new Error('all transports failed');
+}
+async function getMonth(recId,ym){
+  const key=recId+'_'+ym;
+  if(monthCache[key])return monthCache[key];
+  const url=`https://www.recreation.gov/api/camps/availability/campground/${recId}/month?start_date=${ym}-01T00%3A00%3A00.000Z`;
+  const data=await fetchJson(url,j=>j&&typeof j==='object'&&'campsites'in j);
+  monthCache[key]=data;return data;
+}
+function availForNights(monthData,nights){
+  const per={};
+  for(const md of monthData){
+    for(const [id,site]of Object.entries(md.campsites||{})){
+      if(!per[id])per[id]={ok:0,type:site.campsite_type||''};
+      for(const n of nights){
+        const v=site.availabilities&&site.availabilities[n+'T00:00:00Z'];
+        if(v==='Available')per[id].ok++;
+      }
+    }
+  }
+  let count=0;
+  for(const s of Object.values(per)){
+    if(s.ok>=nights.length&&!/GROUP|MANAGEMENT|EQUESTRIAN/i.test(s.type))count++;
+  }
+  return count;
+}
+async function checkCampground(cg,nights){
+  const sc=snapCount(cg,nights);       // prefer the server-side snapshot: instant, no network
+  if(sc!==null)return sc;
+  const months=[...new Set(nights.map(n=>n.slice(0,7)))];
+  const datas=await Promise.all(months.map(m=>getMonth(cg.recId,m)));
+  return availForNights(datas,nights);
+}
+
+// ---------- rendering ----------
+function visible(){
+  const maxD=+$('maxDrive').value,st=$('stateFilter').value,q=$('q').value.trim().toLowerCase();
+  return DB.filter(c=>driveMins(c)<=maxD&&(!st||c.st===st)
+    &&(!q||(c.name+' '+c.region).toLowerCase().includes(q)));
+}
+function driveLabel(m){const h=Math.floor(m/60),mm=m%60;return h?`${h}h${mm?` ${mm}m`:''}`:`${mm}m`;}
+function bookUrl(c){
+  if(c.recId)return`https://www.recreation.gov/camping/campgrounds/${c.recId}/availability`;
+  let u=c.url;
+  const a=$('arrive').value;
+  if(u&&u.includes('.do')&&a){const[y,m,d]=a.split('-');const nights=Math.max(1,nightsBetween(a,$('depart').value||a).length);u+=`&arrivalDate=${m}/${d}/${y}&lengthOfStay=${nights}`;}
+  return u;
+}
+// availability state per row: 'open' | 'full' | 'unknown' (unchecked, failed, or no API)
+function availState(c){
+  const r=results[c.name];
+  if(!c.recId||!r||r.err)return'unknown';
+  if(mode==='weekends')return r.weekends?(r.weekends.some(w=>w.n>0)?'open':'full'):'unknown';
+  return typeof r.count==='number'?(r.count>0?'open':'full'):'unknown';
+}
+function statusBadge(c){
+  const r=results[c.name];
+  if(mode==='weekends'&&c.recId&&r&&r.weekends){
+    return`<div class="weekend-cell">${r.weekends.map(w=>`<span class="wk ${w.n>0?'y':'n'}" title="${w.n} site(s) free Fri+Sat">${w.label}</span>`).join('')}</div>`;
+  }
+  if(c.recId&&r){
+    if(r.err)return`<span class="badge err" title="Live check failed — press the button again to retry">check failed</span>`;
+    if(typeof r.count==='number'){
+      return r.count>0?`<span class="badge open">&#10004; ${r.count} site${r.count===1?'':'s'} open</span>`
+                      :`<span class="badge full">&#10008; full</span>`;
+    }
+  }
+  return'';
+}
+function rowHtml(c){
+  const mi=Math.round(haversineMi(home,c));
+  return`<tr>
+    <td class="drive">${driveLabel(driveMins(c))}<small>~${mi} mi</small></td>
+    <td><div class="name">${c.name}${statusBadge(c)}</div><div class="region">${c.region}</div></td>
+    <td class="hide-m"><span class="sys ${c.sys}">${SYS_LABEL[c.sys]}</span></td>
+    <td><a class="book" href="${bookUrl(c)}" target="_blank" rel="noopener">${c.sys==='hip'?'Browse →':(c.sys==='me'||c.sys==='nj')?'Portal →':'Book →'}</a></td>
+  </tr>`;
+}
+function render(){
+  const rows=visible().slice().sort((a,b)=>{
+    let v=sortKey==='name'?a.name.localeCompare(b.name):driveMins(a)-driveMins(b);
+    return sortAsc?v:-v;
+  });
+  const only=$('onlyAvail').checked;
+  if(!only){
+    $('rows').innerHTML=rows.map(rowHtml).join('');
+    $('unverifiedBox').style.display='none';
+    return;
+  }
+  // "Only show available": main list = confirmed-open rows; full rows hidden;
+  // everything unverifiable (state parks, failed/unchecked) collapses below.
+  const open=rows.filter(c=>availState(c)==='open');
+  const unknown=rows.filter(c=>availState(c)==='unknown');
+  $('rows').innerHTML=open.length?open.map(rowHtml).join('')
+    :`<tr><td colspan="4" style="color:var(--muted);padding:18px">No confirmed-open campgrounds yet — press <b>Check live availability</b>, widen your filters, or try different dates.</td></tr>`;
+  $('unverifiedBox').style.display='';
+  $('unverifiedLabel').textContent=`▸ ${unknown.length} more campgrounds can't be auto-checked (state-park systems) — worth a click, they're often open`;
+  $('rows2').innerHTML=unknown.map(rowHtml).join('');
+}
+
+// ---------- live check ----------
+async function runCheck(){
+  const btn=$('checkBtn');btn.disabled=true;
+  const targets=visible().filter(c=>c.recId);
+  let nights=null,weekends=null;
+  if(mode==='dates'){
+    const a=$('arrive').value,d=$('depart').value;
+    if(!a||!d||d<=a){$('progress').textContent='Pick an arrival and departure date first.';btn.disabled=false;return;}
+    nights=nightsBetween(a,d);
+  }else{weekends=nextWeekends(8);}
+  $('bar').style.display='block';let done=0;
+  const update=()=>{$('barFill').style.width=(100*done/targets.length)+'%';$('progress').textContent=`Checking Recreation.gov… ${done}/${targets.length} campgrounds`;};
+  update();
+  const queue=[...targets];
+  async function worker(){
+    while(queue.length){
+      const c=queue.shift();
+      try{
+        if(mode==='dates'){results[c.name]={count:await checkCampground(c,nights)};}
+        else{
+          const wk=[];
+          for(const w of weekends){
+            const n=[w.fri,fmt(addDays(new Date(w.fri+'T12:00:00'),1))];
+            wk.push({label:w.label,n:await checkCampground(c,n)});
+          }
+          results[c.name]={weekends:wk};
+        }
+      }catch(e){results[c.name]={err:true};}
+      done++;update();render();
+      await sleep(200); // stay polite to proxies / avoid rate limits
+    }
+  }
+  await Promise.all([worker(),worker(),worker()]);
+  const failed=targets.filter(c=>results[c.name]&&results[c.name].err).length;
+  if(failed===targets.length){
+    $('progress').textContent='⚠ Could not reach Recreation.gov from this browser (all 4 routes blocked). This can happen on strict corporate/school networks — try again, try another network, or use the Book links, which always work.';
+  }else if(failed>0){
+    $('progress').textContent=`Done — ${targets.length-failed} campgrounds checked live, ${failed} failed (press "Check live availability" again to retry just those).`;
+  }else{
+    $('progress').textContent=`Done — all ${targets.length} Recreation.gov campgrounds in view checked live. Rows marked "no API" still need a click-through.`;
+  }
+  $('bar').style.display='none';btn.disabled=false;
+}
+
+// ---------- wiring ----------
+$('metro').addEventListener('change',()=>{const[lat,lng]=$('metro').value.split(',').map(Number);setHome(lat,lng,$('metro').options[$('metro').selectedIndex].text);});
+$('locSearchBtn').addEventListener('click',()=>{const q=$('locSearch').value.trim();if(q)geocode(q);});
+$('locSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){const q=$('locSearch').value.trim();if(q)geocode(q);}});
+$('geoBtn').addEventListener('click',()=>{
+  if(!navigator.geolocation){$('locStatus').textContent='Geolocation not supported in this browser.';return;}
+  $('locStatus').textContent='Locating…';
+  navigator.geolocation.getCurrentPosition(async p=>{
+    const la=p.coords.latitude,lo=p.coords.longitude;
+    let label=la.toFixed(3)+', '+lo.toFixed(3);
+    // Reverse-geocode so the user can SEE where we think they are
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=10&lat=${la}&lon=${lo}`,{headers:{'Accept':'application/json'}});
+      const j=await r.json();const a=(j&&j.address)||{};
+      const town=a.city||a.town||a.village||a.hamlet||a.municipality||a.county||'';
+      if(town)label=town+(a.state?', '+a.state:'');
+    }catch(e){}
+    $('locSearch').value=label;               // autopopulate the field
+    setHome(la,lo,label+' (my location)');
+  },
+  ()=>{$('locStatus').textContent='Location permission denied — use the dropdown or search box.';});
+});
+$('modeToggle').addEventListener('click',e=>{
+  if(e.target.dataset.mode){mode=e.target.dataset.mode;results={};
+    document.querySelectorAll('#modeToggle button').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+    $('fArrive').style.display=$('fDepart').style.display=(mode==='dates')?'flex':'none';
+    render();}
+});
+$('checkBtn').addEventListener('click',runCheck);
+$('resetBtn').addEventListener('click',()=>{results={};Object.keys(monthCache).forEach(k=>delete monthCache[k]);render();$('progress').textContent='';});
+['maxDrive','stateFilter'].forEach(id=>$(id).addEventListener('change',()=>{try{localStorage.setItem('cf_'+id,$(id).value);}catch(e){}render();}));
+$('q').addEventListener('input',render);
+$('onlyAvail').addEventListener('change',()=>{
+  try{localStorage.setItem('cf_onlyAvail',$('onlyAvail').checked?'1':'');}catch(e){}
+  // If turning on with nothing checked yet, kick off a live check automatically
+  if($('onlyAvail').checked&&!Object.keys(results).length)runCheck();
+  render();
+});
+['arrive','depart'].forEach(id=>$(id).addEventListener('change',render));
+document.querySelectorAll('th[data-sort]').forEach(th=>th.addEventListener('click',()=>{
+  const k=th.dataset.sort;if(sortKey===k)sortAsc=!sortAsc;else{sortKey=k;sortAsc=true;}render();
+}));
+// defaults
+(function(){
+  try{
+    ['maxDrive','stateFilter'].forEach(id=>{const v=localStorage.getItem('cf_'+id);if(v!==null)$(id).value=v;});
+    if(localStorage.getItem('cf_onlyAvail'))$('onlyAvail').checked=true;
+    const h=localStorage.getItem('cf_home');
+    if(h){home=JSON.parse(h);
+      for(const o of $('metro').options){if(o.text===home.label){$('metro').value=o.value;break;}}
+    }
+  }catch(e){}
+  $('locStatus').textContent='Distances from: '+home.label;
+  let d=new Date();d.setHours(12,0,0,0);while(d.getDay()!==5)d=addDays(d,1);
+  $('arrive').value=fmt(d);$('depart').value=fmt(addDays(d,2));
+  render();
+  loadSnapshot(); // no-op when the JSON isn't published (e.g. opening the file locally)
+})();
+</script>
+</body>
+</html>
